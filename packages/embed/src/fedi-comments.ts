@@ -50,7 +50,6 @@ const STYLES = `
   display: inline-flex;
   gap: 0.5em;
   margin-left: 0.5em;
-  opacity: 0.8;
 }
 .fedi-comments-list {
   list-style: none;
@@ -144,6 +143,9 @@ const STYLES = `
 }
 .fedi-help-input {
   flex: 1;
+}
+.fedi-help-btn {
+  height: auto;
 }
 /* Utility for clean link separation */
 .fedi-comment-meta a {
@@ -284,7 +286,7 @@ function renderHelp(canonicalUrl: string, instanceUrl: string): string {
       <p>推荐直接输入并跳转到你所在的 Fediverse 实例来互动：</p>
       <div class="fedi-help-form">
         <input type="text" class="fedi-help-input" placeholder="mastodon.social" data-fedi-instance>
-        <button class="fedi-help-btn" data-fedi-go>出发！</button>
+        <button class="fedi-help-btn" data-fedi-go>出发</button>
       </div>
     </details>
   `;
@@ -316,7 +318,7 @@ async function loadComments(container: HTMLElement): Promise<void> {
     const statusStats = [
       data.status.favourites_count > 0 ? `<span class="fedi-stats-item">♡ ${data.status.favourites_count}</span>` : '',
       data.status.reblogs_count > 0 ? `<span class="fedi-stats-item">↻ ${data.status.reblogs_count}</span>` : '',
-    ].filter(Boolean).join(' &nbsp; ');
+    ].filter(Boolean).join(' ');
 
     let html = `<div class="fedi-comments-header">
       <span>${headerText}</span>${statusStats ? ` <span class="fedi-comment-stats-header">${statusStats}</span>` : ''}

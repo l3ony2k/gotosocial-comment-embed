@@ -31,13 +31,8 @@ const AUTHOR_ACCT = 'lok@rex.cat';
 const MAX_DEPTH = 2;
 
 const STYLES = `
-.fedi-comments {
-  font: inherit;
-  color: inherit;
-}
 .fedi-comments-header {
   margin-bottom: 1em;
-  color: var(--sec-text-color, #808080);
   font-size: 0.9em;
 }
 .fedi-comments-list {
@@ -48,7 +43,6 @@ const STYLES = `
 .fedi-comment {
   display: flex;
   gap: 0.6em;
-  padding: 0;
   margin-bottom: 1em;
 }
 .fedi-comment-avatar {
@@ -68,37 +62,18 @@ const STYLES = `
   font-size: 0.9em;
 }
 .fedi-comment-author a {
-  color: inherit;
-  text-decoration: none;
   font-weight: 500;
 }
-.fedi-comment-author a:hover {
-  color: var(--link-color, #0077cc);
-}
-.fedi-comment-handle {
-  color: var(--sec-text-color, #808080);
-}
-.fedi-comment-reply-to {
-  color: var(--sec-text-color, #808080);
-}
 .fedi-comment-badge {
-  font-size: 0.8em;
+  font-size: 0.7em;
   padding: 0 4px;
-  background: var(--button-bg, #ddd);
-  border: 1px solid var(--border-color, #999);
-  color: var(--sec-text-color, #808080);
 }
 .fedi-comment-time {
   display: block;
   font-size: 0.8em;
-  color: var(--sec-text-color, #808080);
-}
-.fedi-comment-time a {
-  color: inherit;
 }
 .fedi-comment-text {
   margin: 0.3em 0;
-  line-height: 1.6;
 }
 .fedi-comment-text p {
   margin: 0 0 0.5em 0;
@@ -106,12 +81,10 @@ const STYLES = `
 .fedi-comment-text p:last-child {
   margin-bottom: 0;
 }
-/* Nested replies - tighter spacing */
 .fedi-replies {
   list-style: none;
   padding: 0;
-  margin: 0;
-  margin-left: 2.5em;
+  margin: 0 0 0 2.5em;
 }
 .fedi-replies .fedi-comment {
   margin-bottom: 0.4em;
@@ -123,45 +96,13 @@ const STYLES = `
 .fedi-replies .fedi-replies {
   margin-left: 0;
 }
-.fedi-help {
-  margin-top: 1em;
-  padding: 0.8em;
-  background: var(--highlight-bg, #fafafa);
-  border: 1px solid var(--border-color, #999);
-  font-size: 0.9em;
-}
-.fedi-help summary {
-  cursor: pointer;
-}
-.fedi-help p {
-  margin: 0.5em 0;
-}
 .fedi-help-form {
   display: flex;
   gap: 0.5em;
+  align-items: stretch;
 }
 .fedi-help-input {
   flex: 1;
-  padding: 8px;
-  font: inherit;
-  border: 1px solid var(--border-color, #999);
-  background: var(--highlight-bg, #fafafa);
-  color: inherit;
-}
-.fedi-help-btn {
-  padding: 0 8px;
-  font: inherit;
-  background: var(--button-bg, #ddd);
-  border: 1px solid var(--border-color, #999);
-  color: inherit;
-  cursor: pointer;
-}
-.fedi-help-btn:hover {
-  background: var(--button-hover, #ccc);
-}
-.fedi-error, .fedi-loading, .fedi-empty {
-  padding: 1em;
-  color: var(--sec-text-color, #808080);
 }
 `;
 
@@ -286,9 +227,9 @@ async function loadComments(container: HTMLElement): Promise<void> {
 
     const data: FediResponse = await res.json();
 
-    let headerText = `${data.visibleCount} visible repl${data.visibleCount !== 1 ? 'ies' : 'y'}`;
+    let headerText = `找到了 ${data.visibleCount} 条可见评论`;
     if (data.hiddenCount > 0) {
-      headerText += `; ${data.hiddenCount} more repl${data.hiddenCount !== 1 ? 'ies' : 'y'} hidden or not public`;
+      headerText += `；还有 ${data.hiddenCount} 条评论被隐藏或私有`;
     }
 
     let html = `<div class="fedi-comments-header">${headerText}</div>`;

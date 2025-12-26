@@ -9,7 +9,7 @@ globs = ["**/*.js"]
 fallthrough = false
 
 [vars]
-ALLOWED_ORIGINS = "*"
+ALLOWED_ORIGINS = "https://l3on.site,https://lok.bearblog.dev"
 CACHE_TTL = "300"
 
 # For local dev, create .dev.vars file with:

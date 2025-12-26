@@ -47,10 +47,9 @@ const STYLES = `
   font-size: 0.9em;
 }
 .fedi-comment-stats-header {
-  display: flex;
-  gap: 1em;
-  margin-bottom: 0.5em;
-  font-size: 0.9em;
+  display: inline-flex;
+  gap: 0.5em;
+  margin-left: 0.5em;
   opacity: 0.8;
 }
 .fedi-comments-list {
@@ -277,7 +276,7 @@ function renderComment(comment: CommentNode, depth: number): string {
   return html;
 }
 
-function renderHelp(canonicalUrl: string): string {
+function renderHelp(canonicalUrl: string, instanceUrl: string): string {
   return `
     <details class="fedi-help">
       <summary>如何评论</summary>
@@ -313,20 +312,18 @@ async function loadComments(container: HTMLElement): Promise<void> {
       headerText += `；还有 ${data.hiddenCount} 条评论被隐藏或私有`;
     }
 
-    // Main status counts
+    // Main status counts (replies_count omitted - already shown in header text)
     const statusStats = [
       data.status.favourites_count > 0 ? `<span class="fedi-stats-item">♡ ${data.status.favourites_count}</span>` : '',
       data.status.reblogs_count > 0 ? `<span class="fedi-stats-item">↻ ${data.status.reblogs_count}</span>` : '',
-      data.status.replies_count > 0 ? `<span class="fedi-stats-item">✉︎ ${data.status.replies_count}</span>` : '',
     ].filter(Boolean).join(' &nbsp; ');
 
     let html = `<div class="fedi-comments-header">
-      <div>${headerText}</div>
-      ${statusStats ? `<div class="fedi-comment-stats-header">${statusStats}</div>` : ''}
+      <span>${headerText}</span>${statusStats ? ` <span class="fedi-comment-stats-header">${statusStats}</span>` : ''}
     </div>`;
 
     // Render Help immediately after header
-    html += renderHelp(data.canonicalUrl);
+    html += renderHelp(data.canonicalUrl, data.instanceUrl);
 
     if (data.comments.length > 0) {
       const tree = buildTree(data.comments, data.status.id);

@@ -62,7 +62,7 @@ const STYLES = `
   font-size: 0.9em;
 }
 .fedi-comment-author a {
-  font-weight: 500;
+  font-weight: bold;
 }
 .fedi-comment-badge {
   font-size: 0.7em;

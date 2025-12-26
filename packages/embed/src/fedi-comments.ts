@@ -3,6 +3,13 @@
  * Usage: <div data-fedi-comments data-post-id="STATUS_ID" data-worker-url="https://your-worker.workers.dev"></div>
  */
 
+interface FediAttachment {
+  type: string;
+  url: string;
+  preview_url: string;
+  description: string | null;
+}
+
 interface FediComment {
   id: string;
   created_at: string;
@@ -16,6 +23,10 @@ interface FediComment {
     avatar: string;
     url: string;
   };
+  replies_count: number;
+  reblogs_count: number;
+  favourites_count: number;
+  media_attachments: FediAttachment[];
 }
 
 interface FediResponse {
@@ -28,12 +39,19 @@ interface FediResponse {
 }
 
 const AUTHOR_ACCT = 'lok@rex.cat';
-const MAX_DEPTH = 2;
+const MAX_DEPTH = 3;
 
 const STYLES = `
 .fedi-comments-header, .fedi-loading, .fedi-error {
   margin-bottom: 1em;
   font-size: 0.9em;
+}
+.fedi-comment-stats-header {
+  display: flex;
+  gap: 1em;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+  opacity: 0.8;
 }
 .fedi-comments-list {
   list-style: none;
@@ -49,6 +67,7 @@ const STYLES = `
   width: 36px;
   height: 36px;
   flex-shrink: 0;
+  background-color: #808080;
 }
 .fedi-comment-body {
   flex: 1;
@@ -69,8 +88,20 @@ const STYLES = `
   padding: 0 4px;
 }
 .fedi-comment-time {
-  display: block;
   font-size: 0.8em;
+  opacity: 0.7;
+}
+.fedi-comment-stats {
+  display: inline-flex;
+  gap: 0.6em;
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-left: 0.5em;
+}
+.fedi-stats-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 .fedi-comment-text {
   margin: 0.3em 0;
@@ -80,6 +111,17 @@ const STYLES = `
 }
 .fedi-comment-text p:last-child {
   margin-bottom: 0;
+}
+.fedi-attachments {
+  margin-top: 0.5em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+.fedi-attachment-img {
+  max-height: 100px;
+  width: auto;
+  object-fit: cover;
 }
 .fedi-replies {
   list-style: none;
@@ -104,6 +146,14 @@ const STYLES = `
 .fedi-help-input {
   flex: 1;
 }
+/* Utility for clean link separation */
+.fedi-comment-meta a {
+  text-decoration: none;
+  color: inherit;
+}
+.fedi-comment-meta a:hover {
+  text-decoration: underline;
+}
 `;
 
 function formatDate(dateStr: string): string {
@@ -119,6 +169,16 @@ function getRedirectUrl(instanceUrl: string, canonicalUrl: string): string {
 
 function isAuthor(acct: string): boolean {
   return acct === AUTHOR_ACCT || acct === AUTHOR_ACCT.split('@')[0];
+}
+
+function sanitizeContent(html: string): string {
+  // Simple parser to strip leading mentions
+  // Matches <a ... class="...mention..." ...>@username</a> at the start, possibly inside a <p>
+
+  const mentionRegex1 = /^(\s*<p[^>]*>\s*)?<span class="h-card"[^>]*><a[^>]+class="[^"]*mention[^"]*"[^>]*>@<span>[^<]+<\/span><\/a><\/span>\s*/i;
+  const mentionRegex2 = /^(\s*<p[^>]*>\s*)?<a[^>]+class="[^"]*mention[^"]*"[^>]*>@[^<]+<\/a>\s*/i;
+
+  return html.replace(mentionRegex1, '$1').replace(mentionRegex2, '$1');
 }
 
 interface CommentNode extends FediComment {
@@ -157,7 +217,24 @@ function renderComment(comment: CommentNode, depth: number): string {
   // Show "↩ @user" if replying to someone at depth >= MAX_DEPTH
   let replyIndicator = '';
   if (depth >= MAX_DEPTH && comment.replyToAcct) {
-    replyIndicator = `<span class="fedi-comment-reply-to">↩ @${comment.replyToAcct}</span>`;
+    replyIndicator = `<span class="fedi-comment-reply-to">✉︎ @${comment.replyToAcct}</span>`;
+  }
+
+  // Stats
+  const stats = [
+    comment.favourites_count > 0 ? `<span class="fedi-stats-item" title="Favorites">♡ ${comment.favourites_count}</span>` : '',
+    comment.reblogs_count > 0 ? `<span class="fedi-stats-item" title="Boosts">↻ ${comment.reblogs_count}</span>` : '',
+    comment.replies_count > 0 ? `<span class="fedi-stats-item" title="Replies">✉︎ ${comment.replies_count}</span>` : '',
+  ].filter(Boolean).join(' ');
+
+  // Images
+  let attachmentsHtml = '';
+  if (comment.media_attachments && comment.media_attachments.length > 0) {
+    attachmentsHtml = `<div class="fedi-attachments">${comment.media_attachments.map(att => `
+      <a href="${att.url}" target="_blank" rel="noopener">
+        <img class="fedi-attachment-img" src="${att.url}" alt="${att.description || ''}" loading="lazy">
+      </a>
+    `).join('')}</div>`;
   }
 
   // Render nested or flattened replies
@@ -167,6 +244,8 @@ function renderComment(comment: CommentNode, depth: number): string {
       repliesHtml = `<ul class="fedi-replies">${comment.replies.map(r => renderComment(r, depth + 1)).join('')}</ul>`;
     }
   }
+
+  const cleanContent = sanitizeContent(comment.content);
 
   const html = `
     <li class="fedi-comment">
@@ -179,9 +258,11 @@ function renderComment(comment: CommentNode, depth: number): string {
           <span class="fedi-comment-handle">@${comment.account.acct}</span>
           ${badge}
           ${replyIndicator}
+          <span class="fedi-comment-time"><a href="${comment.url}" target="_blank" rel="noopener">${formatDate(comment.created_at)}</a></span>
+          ${stats ? `<span class="fedi-comment-stats">${stats}</span>` : ''}
         </div>
-        <span class="fedi-comment-time"><a href="${comment.url}" target="_blank" rel="noopener">${formatDate(comment.created_at)}</a></span>
-        <div class="fedi-comment-text">${comment.content}</div>
+        <div class="fedi-comment-text">${cleanContent}</div>
+        ${attachmentsHtml}
       </div>
     </li>
     ${repliesHtml}
@@ -199,9 +280,9 @@ function renderComment(comment: CommentNode, depth: number): string {
 function renderHelp(canonicalUrl: string): string {
   return `
     <details class="fedi-help">
-      <summary>💬 如何评论</summary>
-      <p>回复 <a href="${canonicalUrl}" target="_blank" rel="noopener">这个 Fediverse 上的帖子</a>，你的评论就会出现在这里。</p>
-      <p>输入并跳转到你所在的 Fediverse 实例来互动：</p>
+      <summary>如何评论</summary>
+      <p>这些评论都来自 Fediverse 上 <a href="${instanceUrl}" target="_blank" rel="noopener">我的实例</a>。回复 <a href="${canonicalUrl}" target="_blank" rel="noopener">这个帖文</a>，你的评论就会出现在这里。</p>
+      <p>推荐直接输入并跳转到你所在的 Fediverse 实例来互动：</p>
       <div class="fedi-help-form">
         <input type="text" class="fedi-help-input" placeholder="mastodon.social" data-fedi-instance>
         <button class="fedi-help-btn" data-fedi-go>出发！</button>
@@ -232,7 +313,20 @@ async function loadComments(container: HTMLElement): Promise<void> {
       headerText += `；还有 ${data.hiddenCount} 条评论被隐藏或私有`;
     }
 
-    let html = `<div class="fedi-comments-header">${headerText}</div>`;
+    // Main status counts
+    const statusStats = [
+      data.status.favourites_count > 0 ? `<span class="fedi-stats-item">♡ ${data.status.favourites_count}</span>` : '',
+      data.status.reblogs_count > 0 ? `<span class="fedi-stats-item">↻ ${data.status.reblogs_count}</span>` : '',
+      data.status.replies_count > 0 ? `<span class="fedi-stats-item">✉︎ ${data.status.replies_count}</span>` : '',
+    ].filter(Boolean).join(' &nbsp; ');
+
+    let html = `<div class="fedi-comments-header">
+      <div>${headerText}</div>
+      ${statusStats ? `<div class="fedi-comment-stats-header">${statusStats}</div>` : ''}
+    </div>`;
+
+    // Render Help immediately after header
+    html += renderHelp(data.canonicalUrl);
 
     if (data.comments.length > 0) {
       const tree = buildTree(data.comments, data.status.id);
@@ -241,7 +335,6 @@ async function loadComments(container: HTMLElement): Promise<void> {
       html += '<div class="fedi-empty">还没有评论，快来评论吧！</div>';
     }
 
-    html += renderHelp(data.canonicalUrl);
     container.innerHTML = html;
 
     const input = container.querySelector('[data-fedi-instance]') as HTMLInputElement;

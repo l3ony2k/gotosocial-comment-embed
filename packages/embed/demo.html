@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fedi Comments Demo</title>
+    <style>
+        :root {
+            --background-color: #f0f0f0;
+            --text-color: #333;
+            --sec-text-color: #808080;
+            --heading-color: #333;
+            --link-color: #0077cc;
+            --border-color: #999;
+            --button-bg: #ddd;
+            --button-hover: #ccc;
+            --highlight-bg: #ffffff;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #111;
+                --text-color: #ddd;
+                --sec-text-color: #808080;
+                --heading-color: #fff;
+                --link-color: #66b3ff;
+                --border-color: #555;
+                --button-bg: #333;
+                --button-hover: #444;
+                --highlight-bg: #1a1a1a;
+            }
+        }
+
+        body {
+            font-family: "IBM Plex Sans", system-ui, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+            line-height: 1.6;
+            background: var(--background-color);
+            color: var(--text-color);
+        }
+
+        h1,
+        h2 {
+            color: var(--heading-color);
+        }
+
+        .meta {
+            color: var(--sec-text-color);
+            margin-bottom: 2rem;
+        }
+
+        article {
+            margin-bottom: 2rem;
+        }
+
+        hr {
+            margin: 2rem 0;
+            border: none;
+            border-top: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+
+<body>
+    <article>
+        <h1>Example Blog Post</h1>
+        <p class="meta">Posted on December 26, 2024</p>
+        <p>This is an example blog post. The comments below are fetched from GoToSocial.</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore
+            magna aliqua.</p>
+    </article>
+
+    <hr>
+
+    <section>
+        <h2>Comments</h2>
+        <!-- Replace with your actual values -->
+        <div data-fedi-comments data-post-id="01KB9SSCM8ZS1R3EAVQQTH8ZT5" data-worker-url="http://127.0.0.1:8787"></div>
+    </section>
+
+    <!-- Load the embed script -->
+    <script src="dist/fedi-comments.js"></script>
+</body>
+
+</html>

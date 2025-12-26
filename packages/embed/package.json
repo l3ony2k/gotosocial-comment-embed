@@ -1,0 +1,9 @@
+{
+    "name": "@gts-embed/embed",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "bun run build --watch",
+        "build": "bun build src/fedi-comments.ts --outdir dist --minify"
+    }
+}

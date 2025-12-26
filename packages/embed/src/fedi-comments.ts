@@ -31,7 +31,7 @@ const AUTHOR_ACCT = 'lok@rex.cat';
 const MAX_DEPTH = 2;
 
 const STYLES = `
-.fedi-comments-header {
+.fedi-comments-header, .fedi-loading, .fedi-error {
   margin-bottom: 1em;
   font-size: 0.9em;
 }

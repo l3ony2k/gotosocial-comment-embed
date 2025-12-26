@@ -85,14 +85,16 @@ const STYLES = `
   font-size: 0.7em;
   padding: 0 4px;
 }
-.fedi-comment-time {
+.fedi-comment-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
   font-size: 0.8em;
   opacity: 0.7;
 }
 .fedi-comment-stats {
   display: inline-flex;
   gap: 0.6em;
-  font-size: 0.8em;
   opacity: 0.7;
   margin-left: 0.5em;
 }
@@ -100,6 +102,9 @@ const STYLES = `
   display: inline-flex;
   align-items: center;
   gap: 2px;
+}
+.fedi-comment-reply-to {
+  opacity: 0.7;
 }
 .fedi-comment-text {
   margin: 0.3em 0;
@@ -151,9 +156,6 @@ const STYLES = `
 .fedi-comment-meta a {
   text-decoration: none;
   color: inherit;
-}
-.fedi-comment-meta a:hover {
-  text-decoration: underline;
 }
 `;
 
@@ -259,6 +261,8 @@ function renderComment(comment: CommentNode, depth: number): string {
           <span class="fedi-comment-handle">@${comment.account.acct}</span>
           ${badge}
           ${replyIndicator}
+        </div>
+        <div class="fedi-comment-info">
           <span class="fedi-comment-time"><a href="${comment.url}" target="_blank" rel="noopener">${formatDate(comment.created_at)}</a></span>
           ${stats ? `<span class="fedi-comment-stats">${stats}</span>` : ''}
         </div>

@@ -286,8 +286,7 @@ function renderHelp(canonicalUrl: string, instanceUrl: string): string {
   return `
     <details class="fedi-help">
       <summary>如何评论</summary>
-      <p>这些评论都来自 Fediverse 上 <a href="${instanceUrl}" target="_blank" rel="noopener">我的实例</a>。回复 <a href="${canonicalUrl}" target="_blank" rel="noopener">这个帖文</a>，你的评论就会出现在这里。</p>
-      <p>推荐直接输入并跳转到你所在的 Fediverse 实例来互动：</p>
+      <p>这些评论都来自 Fediverse 上 <a href="${instanceUrl}/about" target="_blank" rel="noopener">我的实例</a>。回复 <a href="${canonicalUrl}" target="_blank" rel="noopener">这个帖文</a>，你的评论就会出现在这里。推荐在下面直接输入你的 Fediverse 实例域名，然后跳转到你所在的实例来互动：</p>
       <div class="fedi-help-form">
         <input type="text" class="fedi-help-input" placeholder="mastodon.social" data-fedi-instance>
         <button class="fedi-help-btn" data-fedi-go>出发</button>

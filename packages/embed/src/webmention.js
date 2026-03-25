@@ -78,7 +78,9 @@ Modified: rendering rewritten to match fedi-comments display style.
   }
 
   function renderEntry(e) {
-    var photo      = e.author && e.author.photo;
+    var photo      = (e.author && e.author.photo)
+                  || (Array.isArray(e.photo) ? e.photo[0] : e.photo)
+                  || "";
     var avatar     = photo ? esc(photo) : PLACEHOLDER;
     var authorName = esc((e.author && e.author.name) || e[urlField].split("/")[2]);
     var authorUrl  = esc((e.author && e.author.url)  || e[urlField]);
@@ -139,9 +141,28 @@ Modified: rendering rewritten to match fedi-comments display style.
 
     function onData(data) {
       var items = dedup((data && data.children) || []);
-      container.innerHTML = items.length > 0
-        ? '<ul class="fedi-comments-list">'+items.map(renderEntry).join("")+'</ul>'
-        : "";
+      if (items.length === 0) { container.innerHTML = ""; return; }
+
+      // Count by type for the header stats
+      var counts = {};
+      items.forEach(function(e){
+        var p = e["wm-property"] || "mention-of";
+        counts[p] = (counts[p] || 0) + 1;
+      });
+
+      // Build stats chips — only for types that appear, preserving display order
+      var order = ["like-of","repost-of","bookmark-of","in-reply-to","mention-of","follow-of","rsvp"];
+      var chips = order.filter(function(p){ return counts[p]; }).map(function(p){
+        return '<span class="fedi-stats-item">'+(icons[p]||"✉︎")+' '+counts[p]+'</span>';
+      }).join(" ");
+
+      var header = '<div class="fedi-comments-header">'
+        + '<span>找到了 '+items.length+' 条互动</span>'
+        + (chips ? ' <span class="fedi-comment-stats-header">'+chips+'</span>' : '')
+        + '</div>';
+
+      container.innerHTML = header
+        + '<ul class="fedi-comments-list">'+items.map(renderEntry).join("")+'</ul>';
     }
 
     if (window.fetch) {

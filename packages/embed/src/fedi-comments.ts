@@ -320,7 +320,7 @@ function watchWebmentions(container: HTMLElement): void {
 
     // webmention.js renders <div class="webmention-..."> items or an h2
     // If nothing rendered (empty container or only whitespace), show empty state
-    const hasItems = container.querySelector('.webmention, [class*="webmention-"]');
+    const hasItems = container.querySelector('ul.fedi-comments-list');
     const isError = (container as HTMLElement & { dataset: DOMStringMap }).dataset.wmError === '1';
 
     if (isError) {

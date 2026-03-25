@@ -199,15 +199,33 @@
             container.innerHTML = '';
         } else if (wmState === 'has-items') {
             container.innerHTML = `
-                <h2>2 Responses</h2>
-                <ul>
-                    <li class="webmention webmention-like">
-                        <a class="webmention-url" href="https://bob.example.com">bob.example.com</a>
-                        liked this.
+                <ul class="fedi-comments-list">
+                    <li class="fedi-comment">
+                        <img class="fedi-comment-avatar" src="" alt="" loading="lazy">
+                        <div class="fedi-comment-body">
+                            <div class="fedi-comment-meta">
+                                <span class="fedi-comment-author"><a href="https://bob.example.com" target="_blank" rel="nofollow noopener">Bob</a></span>
+                                <span class="fedi-comment-handle">bob.example.com</span>
+                                <span class="fedi-comment-badge">♡ 喜欢</span>
+                            </div>
+                            <div class="fedi-comment-info">
+                                <span class="fedi-comment-time"><a href="https://bob.example.com/post/1" target="_blank" rel="nofollow noopener">2024-12-26 12:00</a></span>
+                            </div>
+                        </div>
                     </li>
-                    <li class="webmention webmention-mention">
-                        <div class="webmention-content">Interesting article about <a href="https://l3on.site/article/frutiger-aero/">Frutiger Aero</a>!</div>
-                        <div class="webmention-meta">from <a href="https://carol.example.com/post/1">carol.example.com</a></div>
+                    <li class="fedi-comment">
+                        <img class="fedi-comment-avatar" src="" alt="" loading="lazy">
+                        <div class="fedi-comment-body">
+                            <div class="fedi-comment-meta">
+                                <span class="fedi-comment-author"><a href="https://carol.example.com" target="_blank" rel="nofollow noopener">Carol</a></span>
+                                <span class="fedi-comment-handle">carol.example.com</span>
+                                <span class="fedi-comment-badge">✉︎ 提及</span>
+                            </div>
+                            <div class="fedi-comment-info">
+                                <span class="fedi-comment-time"><a href="https://carol.example.com/post/1" target="_blank" rel="nofollow noopener">2024-12-27 09:30</a></span>
+                            </div>
+                            <div class="fedi-comment-text"><p>Interesting article about Frutiger Aero!</p></div>
+                        </div>
                     </li>
                 </ul>`;
         } else if (wmState === 'error') {

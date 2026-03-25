@@ -26,5 +26,136 @@ GitHub repo (for latest released versions, issue tracking, etc.):
 
     http://github.com/PlaidWeb/webmention.js
 
+Modified: rendering rewritten to match fedi-comments display style.
+
 */
-!function(){"use strict";function e(e,t){return document.currentScript.getAttribute("data-"+e)||t}var t=e("page-url",window.location.href.replace(/#.*$/,"")),o=e("add-urls",void 0),n=e("data-id","webmentions"),r=e("wordcount"),a=e("max-webmentions",30),i=e("prevent-spoofing")?"wm-source":"url",s={"in-reply-to":"replied","like-of":"liked","repost-of":"reposted","bookmark-of":"bookmarked","mention-of":"mentioned",rsvp:"RSVPed","follow-of":"followed"},u={"in-reply-to":"✉︎","like-of":"♡","repost-of":"↻","bookmark-of":"☆","mention-of":"✉︎",rsvp:"○","follow-of":"→"},l={yes:"✓",no:"✗",interested:"?",maybe:"?"};function c(e){return e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}function f(e){var t='<a class="reaction" rel="nofollow ugc" title="'+c(e.author&&e.author.name?e.author.name:e.url.split("/")[2])+" "+(s[e["wm-property"]]||"reacted")+'" href="'+e[i]+'">';return e.author&&e.author.photo&&(t+='<img src="'+c(e.author.photo)+'">'),t+=u[e["wm-property"]]||"·",e.rsvp&&l[e.rsvp]&&(t+="<sub>"+l[e.rsvp]+"</sub>"),t+="</a>"}function p(e){return e.substr(e.indexOf("//"))}function h(e){var t=[],o={};return e.forEach((function(e){var n=p(e.url);o[n]||(t.push(e),o[n]=!0)})),t}window.addEventListener("load",(function(){var e=document.getElementById(n);if(e){var s=[p(t)];o&&o.split("|").forEach((function(e){s.push(p(e))}));var u="https://webmention.io/api/mentions.jf2?per-page="+a;s.forEach((function(e){u+="&target[]="+encodeURIComponent("http:"+e)+"&target[]="+encodeURIComponent("https:"+e)})),function(e,t){if(window.fetch)window.fetch(e).then((function(e){return e.status>=200&&e.status<300?Promise.resolve(e):Promise.reject(new Error(e.statusText))})).then((function(e){return e.json()})).then(t).catch((function(e){console.error("Request failed",e)}));else{var o=new XMLHttpRequest;o.onload=function(e){t(JSON.parse(e))},o.onerror=function(e){console.error("Request failed",e)}}}(u,(function(t){var o="",n=[],a=[],s={"in-reply-to":n,"like-of":a,"repost-of":a,"bookmark-of":a,"mention-of":n,rsvp:n};t.children.forEach((function(e){var t=s[e["wm-property"]];t&&t.push(e)})),n.length>0&&(o+=function(e){var t="<h2>"+e.length+" Response"+(e.length>1?"s":"")+'</h2><ul class="comments">';return e.forEach((function(e){var o,n;if(t+="<li>",t+=f(e),t+=' <a class="source" rel="nofollow ugc" href="'+e[i]+'">',e.author&&e.author.name?t+=c(e.author.name):t+=c(e.url.split("/")[2]),t+="</a>: ",e.name)o="name",n=e.name;else if(e.content&&e.content.text){var a=c(e.content.text);if(r){var s=a.replace(/\s+/g," ").split(" ",r+1);s.length>r&&(s[r-1]+="&hellip;",a=(s=s.slice(0,r)).join(" "))}o="text",n=a}else o="name",n="(mention)";t+='<span class="'+o+'">'+n+"</span>",t+="</li>"})),t+="</ul>"}(h(n))),a.length>0&&(o+=function(e){var t="<h2>"+e.length+" Reaction"+(e.length>1?"s":"")+'</h2><ul class="reacts">';return e.forEach((function(e){t+=f(e)})),t}(h(a))),e.innerHTML=o}))}}))}();
+!function(){"use strict";
+
+  function cfg(name,def){
+    return(document.currentScript&&document.currentScript.getAttribute("data-"+name))||def;
+  }
+
+  var pageUrl    = cfg("page-url", window.location.href.replace(/#.*$/,""));
+  var addUrls    = cfg("add-urls");
+  var containerId= cfg("data-id", "webmentions");
+  var wordcount  = parseInt(cfg("wordcount","0"),10)||0;
+  var maxItems   = cfg("max-webmentions", 30);
+  var urlField   = cfg("prevent-spoofing") ? "wm-source" : "url";
+
+  var icons  = {"in-reply-to":"✉︎","like-of":"♡","repost-of":"↻","bookmark-of":"☆","mention-of":"✉︎",rsvp:"○","follow-of":"→"};
+  var labels = {"in-reply-to":"回复","like-of":"喜欢","repost-of":"转发","bookmark-of":"书签","mention-of":"提及",rsvp:"RSVP","follow-of":"关注"};
+  var rsvpIcons = {yes:"✓",no:"✗",interested:"?",maybe:"?"};
+
+  // Fully percent-encoded SVG so it's safe inside both src="" and onerror='this.src=...'
+  var PLACEHOLDER = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2236%22%20height%3D%2236%22%3E%3Crect%20width%3D%2236%22%20height%3D%2236%22%20fill%3D%22%23808080%22%2F%3E%3C%2Fsvg%3E";
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;");
+  }
+
+  function stripProto(u) { return u.substr(u.indexOf("//")); }
+
+  function dedup(arr) {
+    var seen={}, out=[];
+    arr.forEach(function(e){
+      var k=stripProto(e.url);
+      if(!seen[k]){out.push(e);seen[k]=1;}
+    });
+    return out;
+  }
+
+  function fmtDate(s) {
+    if(!s) return "";
+    var d=new Date(s);
+    if(isNaN(d)) return "";
+    function pad(n){return String(n).padStart(2,"0");}
+    return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())
+      +" "+pad(d.getHours())+":"+pad(d.getMinutes());
+  }
+
+  function renderEntry(e) {
+    var photo      = e.author && e.author.photo;
+    var avatar     = photo ? esc(photo) : PLACEHOLDER;
+    var authorName = esc((e.author && e.author.name) || e[urlField].split("/")[2]);
+    var authorUrl  = esc((e.author && e.author.url)  || e[urlField]);
+    var sourceUrl  = esc(e[urlField]);
+    var domain     = esc(e[urlField].split("/")[2] || "");
+    var date       = fmtDate(e.published || e["wm-received"]);
+    var prop       = e["wm-property"] || "mention-of";
+    var icon       = icons[prop]  || "✉︎";
+    var label      = labels[prop] || "提及";
+    var rsvpSub    = (e.rsvp && rsvpIcons[e.rsvp]) ? "<sub>"+rsvpIcons[e.rsvp]+"</sub>" : "";
+
+    var content = "";
+    if (e.content && e.content.text) {
+      var text = esc(e.content.text);
+      if (wordcount > 0) {
+        var words = text.replace(/\s+/g," ").split(" ");
+        if (words.length > wordcount) {
+          words = words.slice(0, wordcount);
+          words[words.length-1] += "&hellip;";
+        }
+        text = words.join(" ");
+      }
+      content = '<div class="fedi-comment-text"><p>'+text+'</p></div>';
+    } else if (e.name) {
+      content = '<div class="fedi-comment-text"><p>'+esc(e.name)+'</p></div>';
+    }
+
+    return '<li class="fedi-comment">'
+      + '<img class="fedi-comment-avatar" src="'+avatar+'" alt="" loading="lazy"'
+      + ' onerror="this.onerror=null;this.src=\''+PLACEHOLDER+'\'">'
+      + '<div class="fedi-comment-body">'
+        + '<div class="fedi-comment-meta">'
+          + '<span class="fedi-comment-author"><a href="'+authorUrl+'" target="_blank" rel="nofollow noopener">'+authorName+'</a></span>'
+          + '<span class="fedi-comment-handle">'+domain+'</span>'
+          + '<span class="fedi-comment-badge">'+icon+' '+label+'</span>'
+          + rsvpSub
+        + '</div>'
+        + '<div class="fedi-comment-info">'
+          + (date ? '<span class="fedi-comment-time"><a href="'+sourceUrl+'" target="_blank" rel="nofollow noopener">'+date+'</a></span>' : '')
+        + '</div>'
+        + content
+      + '</div>'
+      + '</li>';
+  }
+
+  window.addEventListener("load", function() {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+
+    var targets = [stripProto(pageUrl)];
+    if (addUrls) addUrls.split("|").forEach(function(u){ targets.push(stripProto(u)); });
+
+    var apiUrl = "https://webmention.io/api/mentions.jf2?per-page="+maxItems;
+    targets.forEach(function(t){
+      apiUrl += "&target[]="+encodeURIComponent("http:"+t)
+             +"&target[]="+encodeURIComponent("https:"+t);
+    });
+
+    function onData(data) {
+      var items = dedup((data && data.children) || []);
+      container.innerHTML = items.length > 0
+        ? '<ul class="fedi-comments-list">'+items.map(renderEntry).join("")+'</ul>'
+        : "";
+    }
+
+    if (window.fetch) {
+      window.fetch(apiUrl)
+        .then(function(r){ return r.ok ? r.json() : Promise.reject(r.statusText); })
+        .then(onData)
+        .catch(function(err){ console.error("webmention fetch failed", err); });
+    } else {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function(){ onData(JSON.parse(xhr.responseText)); };
+      xhr.onerror = function(err){ console.error("webmention fetch failed", err); };
+      xhr.open("GET", apiUrl);
+      xhr.send();
+    }
+  });
+
+}();

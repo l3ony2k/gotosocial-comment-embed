@@ -4,6 +4,7 @@
 
 // Loaded as text by wrangler rules
 import EMBED_SCRIPT from '../../embed/dist/fedi-comments.js';
+import WEBMENTION_SCRIPT from '../../embed/dist/webmention.js';
 
 interface Env {
     GTS_INSTANCE_URL: string;
@@ -82,6 +83,17 @@ export default {
         // Route: /embed.js - serve the embed script
         if (url.pathname === '/embed.js') {
             return new Response(EMBED_SCRIPT, {
+                headers: {
+                    'Content-Type': 'application/javascript',
+                    'Cache-Control': 'public, max-age=86400',
+                    ...corsHeaders(origin, env.ALLOWED_ORIGINS),
+                },
+            });
+        }
+
+        // Route: /webmention.js - serve the local webmention script
+        if (url.pathname === '/webmention.js') {
+            return new Response(WEBMENTION_SCRIPT, {
                 headers: {
                     'Content-Type': 'application/javascript',
                     'Cache-Control': 'public, max-age=86400',

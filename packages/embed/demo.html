@@ -61,28 +61,171 @@
             border: none;
             border-top: 1px solid var(--border-color);
         }
+
+        /* demo controls */
+        .demo-controls {
+            background: var(--highlight-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+        .demo-controls strong { display: block; margin-bottom: 0.5rem; color: var(--sec-text-color); }
+        .demo-controls label { margin-right: 1rem; cursor: pointer; }
     </style>
 </head>
 
-<body>
+<!-- body.post triggers shouldShowComments() → initUnified() -->
+<body class="post">
+<main>
     <article>
         <h1>Example Blog Post</h1>
         <p class="meta">Posted on December 26, 2024</p>
         <p>This is an example blog post. The comments below are fetched from GoToSocial.</p>
         <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore
             magna aliqua.</p>
+
+        <!-- data-fedi-id marker — unified mode reads this post ID -->
+        <span data-fedi-id="01KB9SSCM8ZS1R3EAVQQTH8ZT5" hidden></span>
     </article>
 
     <hr>
 
-    <section>
-        <h2>Comments</h2>
-        <!-- Replace with your actual values -->
-        <div data-fedi-comments data-post-id="01KB9SSCM8ZS1R3EAVQQTH8ZT5" data-worker-url="http://127.0.0.1:8787"></div>
-    </section>
+    <!-- Demo controls: simulate different states without deploying -->
+    <div class="demo-controls">
+        <strong>🛠 Demo controls (local testing only)</strong>
+        <label><input type="radio" name="wm-state" value="loading" checked> Webmention: loading</label>
+        <label><input type="radio" name="wm-state" value="empty"> Webmention: empty</label>
+        <label><input type="radio" name="wm-state" value="has-items"> Webmention: with items</label>
+        <label><input type="radio" name="wm-state" value="error"> Webmention: error</label>
+        <br><br>
+        <label><input type="radio" name="fedi-state" value="real"> Fedi: real API (127.0.0.1:8787)</label>
+        <label><input type="radio" name="fedi-state" value="empty" checked> Fedi: empty</label>
+        <label><input type="radio" name="fedi-state" value="has-comments"> Fedi: with comments</label>
+        <label><input type="radio" name="fedi-state" value="error"> Fedi: error</label>
+    </div>
+</main>
 
-    <!-- Load the embed script -->
-    <script src="dist/fedi-comments.js"></script>
+<!-- Intercept fetch + webmention.js for local demo simulation -->
+<script>
+(function() {
+    // --- Fedi mock ---
+    const FAKE_STATUS = {
+        id: '01KB9SSCM8ZS1R3EAVQQTH8ZT5',
+        created_at: '2024-12-26T10:00:00Z',
+        in_reply_to_id: null,
+        content: '<p>This is the original post.</p>',
+        url: 'https://rex.cat/@lok/01KB9SSCM8ZS1R3EAVQQTH8ZT5',
+        account: { username: 'lok', acct: 'lok@rex.cat', display_name: 'Leon', avatar: 'https://via.placeholder.com/48', url: 'https://rex.cat/@lok' },
+        replies_count: 2, reblogs_count: 1, favourites_count: 3,
+        sensitive: false, spoiler_text: '', visibility: 'public', media_attachments: [],
+    };
+
+    const FAKE_COMMENTS = [
+        {
+            id: 'reply001', created_at: '2024-12-26T11:00:00Z', in_reply_to_id: '01KB9SSCM8ZS1R3EAVQQTH8ZT5',
+            content: '<p>Great post! Really enjoyed reading this.</p>',
+            url: 'https://mastodon.social/@alice/reply001',
+            account: { username: 'alice', acct: 'alice@mastodon.social', display_name: 'Alice', avatar: 'https://via.placeholder.com/48/4a90d9', url: 'https://mastodon.social/@alice' },
+            replies_count: 1, reblogs_count: 0, favourites_count: 2, media_attachments: [], visibility: 'public',
+        },
+        {
+            id: 'reply002', created_at: '2024-12-26T12:00:00Z', in_reply_to_id: 'reply001',
+            content: '<p><span class="h-card"><a href="https://mastodon.social/@alice" class="u-url mention">@<span>alice</span></a></span> Thanks for reading!</p>',
+            url: 'https://rex.cat/@lok/reply002',
+            account: { username: 'lok', acct: 'lok@rex.cat', display_name: 'Leon', avatar: 'https://via.placeholder.com/48/e74c3c', url: 'https://rex.cat/@lok' },
+            replies_count: 0, reblogs_count: 0, favourites_count: 0, media_attachments: [], visibility: 'public',
+        },
+    ];
+
+    const fediResponses = {
+        'empty': { status: FAKE_STATUS, comments: [], visibleCount: 0, hiddenCount: 0, canonicalUrl: FAKE_STATUS.url, instanceUrl: 'https://rex.cat' },
+        'has-comments': { status: { ...FAKE_STATUS, replies_count: 2 }, comments: FAKE_COMMENTS, visibleCount: 2, hiddenCount: 0, canonicalUrl: FAKE_STATUS.url, instanceUrl: 'https://rex.cat' },
+    };
+
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes('/comments/')) {
+            const fediState = document.querySelector('input[name="fedi-state"]:checked')?.value || 'empty';
+            if (fediState === 'real') return originalFetch(input, init);
+            if (fediState === 'error') return Promise.reject(new Error('模拟网络错误'));
+            const data = fediResponses[fediState] || fediResponses['empty'];
+            return Promise.resolve(new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        }
+        if (url.includes('webmention.io') && init?.method === 'POST') {
+            return Promise.resolve(new Response('{}', { status: 200 }));
+        }
+        return originalFetch(input, init);
+    };
+
+    // --- Webmention.js mock ---
+    // Intercept the script load and instead directly simulate rendering
+    const originalCreateElement = document.createElement.bind(document);
+    document.createElement = function(tag) {
+        const el = originalCreateElement(tag);
+        if (tag.toLowerCase() === 'script') {
+            const origSetSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+            // Watch for when src is set to the webmention script
+            let _src = '';
+            Object.defineProperty(el, 'src', {
+                get() { return _src; },
+                set(val) {
+                    _src = val;
+                    if (val.includes('webmention')) {
+                        // Don't actually load; simulate instead
+                        setTimeout(() => simulateWebmentions(), 800);
+                    } else {
+                        // Let other scripts load normally
+                        origSetSrc?.set?.call(el, val);
+                    }
+                },
+                configurable: true,
+            });
+        }
+        return el;
+    };
+
+    function simulateWebmentions() {
+        const wmState = document.querySelector('input[name="wm-state"]:checked')?.value || 'loading';
+        const container = document.getElementById('webmentions');
+        if (!container) return;
+
+        if (wmState === 'loading') return; // stays as loading
+
+        if (wmState === 'empty') {
+            // webmention.js renders empty — no .webmention items
+            container.innerHTML = '';
+        } else if (wmState === 'has-items') {
+            container.innerHTML = `
+                <h2>2 Responses</h2>
+                <ul>
+                    <li class="webmention webmention-like">
+                        <a class="webmention-url" href="https://bob.example.com">bob.example.com</a>
+                        liked this.
+                    </li>
+                    <li class="webmention webmention-mention">
+                        <div class="webmention-content">Interesting article about <a href="https://l3on.site/article/frutiger-aero/">Frutiger Aero</a>!</div>
+                        <div class="webmention-meta">from <a href="https://carol.example.com/post/1">carol.example.com</a></div>
+                    </li>
+                </ul>`;
+        } else if (wmState === 'error') {
+            // webmention.js error state: renders nothing / empty
+            container.innerHTML = '';
+            container.dataset.wmError = '1';
+        }
+    }
+
+    // Re-simulate on radio change
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'wm-state') simulateWebmentions();
+    });
+})();
+</script>
+
+<!-- Load the embed script (unified mode) -->
+<script src="dist/fedi-comments.js"></script>
 </body>
 
 </html>

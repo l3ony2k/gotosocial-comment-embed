@@ -135,8 +135,7 @@ Modified: rendering rewritten to match fedi-comments display style.
 
     var apiUrl = "https://webmention.io/api/mentions.jf2?per-page="+maxItems;
     targets.forEach(function(t){
-      apiUrl += "&target[]="+encodeURIComponent("http:"+t)
-             +"&target[]="+encodeURIComponent("https:"+t);
+      apiUrl += "&target[]="+encodeURIComponent("https:"+t);
     });
 
     function onData(data) {

@@ -288,6 +288,19 @@ async function loadComments(container: HTMLElement): Promise<void> {
   }
 }
 
+function normalizeWmUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // Add trailing slash to bare paths (no file extension, no existing slash)
+    if (!u.pathname.endsWith('/') && !u.pathname.split('/').pop()!.includes('.')) {
+      u.pathname += '/';
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 function loadWebmentions(): void {
   if (document.querySelector('script[src*="webmention"]')) return;
   const s = document.createElement('script');
@@ -298,8 +311,8 @@ function loadWebmentions(): void {
 
   // Collect any extra URLs declared via <span data-wm-also="..." hidden>
   const alsoUrls = Array.from(document.querySelectorAll<HTMLElement>('[data-wm-also]'))
-    .map(el => el.dataset.wmAlso)
-    .filter(Boolean) as string[];
+    .map(el => normalizeWmUrl(el.dataset.wmAlso || ''))
+    .filter(Boolean);
   if (alsoUrls.length > 0) s.dataset.addUrls = alsoUrls.join('|');
 
   document.head.appendChild(s);

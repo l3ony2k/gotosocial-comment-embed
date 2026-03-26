@@ -295,6 +295,13 @@ function loadWebmentions(): void {
   s.dataset.wordcount = 'true';
   s.dataset.maxWebmentions = '30';
   s.async = true;
+
+  // Collect any extra URLs declared via <span data-wm-also="..." hidden>
+  const alsoUrls = Array.from(document.querySelectorAll<HTMLElement>('[data-wm-also]'))
+    .map(el => el.dataset.wmAlso)
+    .filter(Boolean) as string[];
+  if (alsoUrls.length > 0) s.dataset.addUrls = alsoUrls.join('|');
+
   document.head.appendChild(s);
 }
 

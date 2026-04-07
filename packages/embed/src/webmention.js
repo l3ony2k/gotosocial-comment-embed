@@ -77,6 +77,136 @@ Modified: rendering rewritten to match fedi-comments display style.
       +" "+pad(d.getHours())+":"+pad(d.getMinutes());
   }
 
+  function unwrapTextValue(value) {
+    if (!value) return "";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (typeof value.value === "string") return value.value;
+      if (typeof value.text === "string") return value.text;
+    }
+    return "";
+  }
+
+  function normalizeText(value) {
+    var text = unwrapTextValue(value);
+    if (!text) return "";
+
+    // Some summaries include entities or inline HTML even when marked as plain text.
+    if (text.indexOf("<") !== -1 || text.indexOf("&") !== -1) {
+      var div = document.createElement("div");
+      div.innerHTML = text;
+      text = div.textContent || div.innerText || "";
+    }
+
+    return text.replace(/\s+/g, " ").trim();
+  }
+
+  function sanitizeUrl(url) {
+    if (!url) return "";
+    try {
+      var parsed = new URL(url, window.location.href);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") return parsed.href;
+    } catch(_) {}
+    return "";
+  }
+
+  function sanitizeHtml(html) {
+    if (!html) return "";
+
+    var template = document.createElement("template");
+    template.innerHTML = html;
+
+    var allowedTags = {
+      A: true, P: true, BR: true, EM: true, STRONG: true, B: true, I: true,
+      BLOCKQUOTE: true, CODE: true, PRE: true, UL: true, OL: true, LI: true,
+      DEL: true, INS: true, SUB: true, SUP: true, MARK: true
+    };
+    var allowedAttrs = {
+      A: { href: true, title: true, class: true }
+    };
+
+    function cleanNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) return;
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        node.remove();
+        return;
+      }
+
+      var tag = node.tagName;
+      if (!allowedTags[tag]) {
+        var parent = node.parentNode;
+        if (!parent) return;
+        while (node.firstChild) parent.insertBefore(node.firstChild, node);
+        parent.removeChild(node);
+        return;
+      }
+
+      Array.from(node.attributes).forEach(function(attr){
+        var name = attr.name.toLowerCase();
+        var perTag = allowedAttrs[tag] || {};
+        if (!perTag[attr.name] && !perTag[name]) {
+          node.removeAttribute(attr.name);
+          return;
+        }
+
+        if (tag === "A" && name === "href") {
+          var safeHref = sanitizeUrl(attr.value);
+          if (!safeHref) {
+            node.removeAttribute(attr.name);
+            return;
+          }
+          node.setAttribute("href", safeHref);
+          node.setAttribute("target", "_blank");
+          node.setAttribute("rel", "nofollow noopener noreferrer");
+        }
+      });
+
+      Array.from(node.childNodes).forEach(cleanNode);
+    }
+
+    Array.from(template.content.childNodes).forEach(cleanNode);
+
+    // Strip empty anchors left behind after URL sanitization.
+    template.content.querySelectorAll("a:not([href])").forEach(function(a){
+      var parent = a.parentNode;
+      if (!parent) return;
+      while (a.firstChild) parent.insertBefore(a.firstChild, a);
+      parent.removeChild(a);
+    });
+
+    return template.innerHTML.trim();
+  }
+
+  function isCompactType(prop) {
+    return prop === "like-of" || prop === "repost-of" || prop === "bookmark-of" || prop === "follow-of";
+  }
+
+  function renderHtmlContent(value) {
+    var html = sanitizeHtml(unwrapTextValue(value));
+    if (!html) return "";
+    return '<div class="fedi-comment-text">'+html+'</div>';
+  }
+
+  function getRenderedContent(e) {
+    var prop = e["wm-property"] || "mention-of";
+    if (isCompactType(prop)) return "";
+
+    var summaryHtml = renderHtmlContent(e.summary);
+    if (summaryHtml) return summaryHtml;
+
+    var contentHtml = renderHtmlContent(e.content && e.content.html);
+    if (contentHtml) return contentHtml;
+
+    var summary = normalizeText(e.summary);
+    if (summary) return '<div class="fedi-comment-text"><p>'+esc(summary)+'</p></div>';
+
+    var text = normalizeText(e.content && e.content.text);
+    if (text) return '<div class="fedi-comment-text"><p>'+esc(text)+'</p></div>';
+
+    return "";
+  }
+
   function renderEntry(e) {
     var photo      = (e.author && e.author.photo)
                   || (Array.isArray(e.photo) ? e.photo[0] : e.photo)
@@ -93,8 +223,9 @@ Modified: rendering rewritten to match fedi-comments display style.
     var rsvpSub    = (e.rsvp && rsvpIcons[e.rsvp]) ? "<sub>"+rsvpIcons[e.rsvp]+"</sub>" : "";
 
     var content = "";
-    if (e.content && e.content.text) {
-      var text = esc(e.content.text);
+    content = getRenderedContent(e);
+    if (!content && e.name && !isCompactType(prop)) {
+      var text = esc(e.name);
       if (wordcount > 0) {
         var words = text.replace(/\s+/g," ").split(" ");
         if (words.length > wordcount) {
@@ -104,8 +235,6 @@ Modified: rendering rewritten to match fedi-comments display style.
         text = words.join(" ");
       }
       content = '<div class="fedi-comment-text"><p>'+text+'</p></div>';
-    } else if (e.name) {
-      content = '<div class="fedi-comment-text"><p>'+esc(e.name)+'</p></div>';
     }
 
     return '<li class="fedi-comment">'

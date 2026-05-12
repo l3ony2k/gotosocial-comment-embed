@@ -4,6 +4,6 @@
     "private": true,
     "scripts": {
         "dev": "bun run build --watch",
-        "build": "bun build src/fedi-comments.ts --outdir dist --minify && cp src/webmention.js dist/webmention.js"
+        "build": "bun build src/l3on-comments.ts --outdir dist --minify"
     }
 }

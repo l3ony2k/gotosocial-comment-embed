@@ -1,10 +1,9 @@
 /**
- * GoToSocial Comment Embed Worker
+ * L3on Comments Worker
  */
 
 // Loaded as text by wrangler rules
-import EMBED_SCRIPT from '../../embed/dist/fedi-comments.js';
-import WEBMENTION_SCRIPT from '../../embed/dist/webmention.js';
+import L3ON_COMMENTS_SCRIPT from '../../embed/dist/l3on-comments.js';
 
 interface Env {
     GTS_INSTANCE_URL: string;
@@ -66,6 +65,17 @@ function json(data: unknown, status: number, origin: string, env: Env): Response
     });
 }
 
+function text(data: string, status: number, origin: string, env: Env): Response {
+    return new Response(data, {
+        status,
+        headers: {
+            'Content-Type': 'application/javascript',
+            'Cache-Control': 'public, max-age=86400',
+            ...corsHeaders(origin, env.ALLOWED_ORIGINS),
+        },
+    });
+}
+
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const url = new URL(request.url);
@@ -80,86 +90,101 @@ export default {
             return json({ error: 'Method not allowed' }, 405, origin, env);
         }
 
-        // Route: /embed.js - serve the embed script
-        if (url.pathname === '/embed.js') {
-            return new Response(EMBED_SCRIPT, {
-                headers: {
-                    'Content-Type': 'application/javascript',
-                    'Cache-Control': 'public, max-age=86400',
-                    ...corsHeaders(origin, env.ALLOWED_ORIGINS),
-                },
-            });
+        // Route: /l3on-comments.js - serve the embed script
+        if (url.pathname === '/l3on-comments.js') {
+            return text(L3ON_COMMENTS_SCRIPT, 200, origin, env);
         }
 
-        // Route: /webmention.js - serve the local webmention script
-        if (url.pathname === '/webmention.js') {
-            return new Response(WEBMENTION_SCRIPT, {
-                headers: {
-                    'Content-Type': 'application/javascript',
-                    'Cache-Control': 'public, max-age=86400',
-                    ...corsHeaders(origin, env.ALLOWED_ORIGINS),
-                },
-            });
-        }
-
-        // Route: /comments/:id
-        const match = url.pathname.match(/^\/comments\/([a-zA-Z0-9_-]+)$/);
-        if (!match) {
-            return json({ error: 'Use GET /comments/:statusId or /embed.js' }, 404, origin, env);
-        }
-
-        const statusId = match[1];
-
-        // Check cache
-        const cacheKey = new Request(url.toString());
-        const cache = caches.default;
-        const cached = await cache.match(cacheKey);
-        if (cached) {
-            const resp = new Response(cached.body, cached);
-            Object.entries(corsHeaders(origin, env.ALLOWED_ORIGINS)).forEach(([k, v]) => resp.headers.set(k, v));
-            return resp;
-        }
-
-        try {
-            const headers = {
-                'Authorization': `Bearer ${env.GTS_ACCESS_TOKEN}`,
-                'Accept': 'application/json',
-                'User-Agent': 'GTS-Comment-Embed/1.0',
-            };
-
-            const [statusRes, contextRes] = await Promise.all([
-                fetch(`${env.GTS_INSTANCE_URL}/api/v1/statuses/${statusId}`, { headers }),
-                fetch(`${env.GTS_INSTANCE_URL}/api/v1/statuses/${statusId}/context`, { headers }),
-            ]);
-
-            if (!statusRes.ok) {
-                return json({ error: `Status fetch failed: ${statusRes.status}` }, 502, origin, env);
+        const fediverseMatch = url.pathname.match(/^\/fediverse\/([a-zA-Z0-9_-]+)$/);
+        if (fediverseMatch) {
+            const statusId = fediverseMatch[1];
+            const cacheKey = new Request(url.toString());
+            const cache = caches.default;
+            const cached = await cache.match(cacheKey);
+            if (cached) {
+                const resp = new Response(cached.body, cached);
+                Object.entries(corsHeaders(origin, env.ALLOWED_ORIGINS)).forEach(([k, v]) => resp.headers.set(k, v));
+                return resp;
             }
 
-            const status: GtsStatus = await statusRes.json();
-            const context: GtsContext = contextRes.ok ? await contextRes.json() : { ancestors: [], descendants: [] };
+            try {
+                const headers = {
+                    'Authorization': `Bearer ${env.GTS_ACCESS_TOKEN}`,
+                    'Accept': 'application/json',
+                    'User-Agent': 'L3on-Comments/1.0',
+                };
 
-            // Filter to only public/unlisted comments
-            const allReplies = context.descendants;
-            const visibleComments = allReplies.filter(c => c.visibility === 'public' || c.visibility === 'unlisted');
-            const hiddenCount = allReplies.length - visibleComments.length;
+                const [statusRes, contextRes] = await Promise.all([
+                    fetch(`${env.GTS_INSTANCE_URL}/api/v1/statuses/${statusId}`, { headers }),
+                    fetch(`${env.GTS_INSTANCE_URL}/api/v1/statuses/${statusId}/context`, { headers }),
+                ]);
 
-            const data = {
-                status,
-                comments: visibleComments,
-                visibleCount: visibleComments.length,
-                hiddenCount: hiddenCount,
-                canonicalUrl: status.url,
-                instanceUrl: env.GTS_INSTANCE_URL,
-            };
+                if (!statusRes.ok) {
+                    return json({ error: `Status fetch failed: ${statusRes.status}` }, 502, origin, env);
+                }
 
-            const response = json(data, 200, origin, env);
-            response.headers.set('Cache-Control', `public, max-age=${env.CACHE_TTL || 300}`);
-            ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                const status: GtsStatus = await statusRes.json();
+                const context: GtsContext = contextRes.ok ? await contextRes.json() : { ancestors: [], descendants: [] };
 
-            return response;
-        } catch (e) {
-            return json({ error: e instanceof Error ? e.message : 'Unknown error' }, 500, origin, env);
+                const allReplies = context.descendants;
+                const visibleComments = allReplies.filter(c => c.visibility === 'public' || c.visibility === 'unlisted');
+                const hiddenCount = allReplies.length - visibleComments.length;
+
+                const data = {
+                    status,
+                    comments: visibleComments,
+                    visibleCount: visibleComments.length,
+                    hiddenCount: hiddenCount,
+                    canonicalUrl: status.url,
+                    instanceUrl: env.GTS_INSTANCE_URL,
+                };
+
+                const response = json(data, 200, origin, env);
+                response.headers.set('Cache-Control', `public, max-age=${env.CACHE_TTL || 300}`);
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+
+                return response;
+            } catch (e) {
+                return json({ error: e instanceof Error ? e.message : 'Unknown error' }, 500, origin, env);
+            }
         }
+
+        if (url.pathname === '/webmentions') {
+            const target = url.searchParams.get('target');
+            const also = url.searchParams.getAll('also').filter(Boolean);
+            if (!target) {
+                return json({ error: 'Missing target' }, 400, origin, env);
+            }
+
+            const cacheKey = new Request(url.toString());
+            const cache = caches.default;
+            const cached = await cache.match(cacheKey);
+            if (cached) {
+                const resp = new Response(cached.body, cached);
+                Object.entries(corsHeaders(origin, env.ALLOWED_ORIGINS)).forEach(([k, v]) => resp.headers.set(k, v));
+                return resp;
+            }
+
+            try {
+                const apiUrl = new URL('https://webmention.io/api/mentions.jf2');
+                apiUrl.searchParams.set('per-page', '30');
+                [target, ...also].forEach(t => apiUrl.searchParams.append('target[]', t));
+
+                const res = await fetch(apiUrl.toString());
+                if (!res.ok) {
+                    return json({ error: `Webmention fetch failed: ${res.status}` }, 502, origin, env);
+                }
+
+                const data = await res.json();
+                const response = json(data, 200, origin, env);
+                response.headers.set('Cache-Control', `public, max-age=${env.CACHE_TTL || 300}`);
+                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                return response;
+            } catch (e) {
+                return json({ error: e instanceof Error ? e.message : 'Unknown error' }, 500, origin, env);
+            }
+        }
+
+        return json({ error: 'Use GET /fediverse/:statusId, /webmentions, or /l3on-comments.js' }, 404, origin, env);
     },
 };

@@ -112,15 +112,10 @@ function renderAttachments(comment: FediComment): string {
 
   const items = comment.media_attachments
     .map((att) => {
-      const href = sanitizeUrl(att.url);
       const src = sanitizeUrl(att.url || att.preview_url);
-      if (!href || !src) return '';
+      if (!src) return '';
       const alt = escapeHtml(att.description || '');
-      return `
-        <a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
-          <img class="l3on-attachment-img" src="${escapeHtml(src)}" alt="${alt}" loading="lazy">
-        </a>
-      `;
+      return `<img class="l3on-attachment-img" src="${escapeHtml(src)}" alt="${alt}" loading="lazy">`;
     })
     .filter(Boolean)
     .join('');
